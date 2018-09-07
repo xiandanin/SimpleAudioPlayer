@@ -4,6 +4,7 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -21,6 +22,9 @@ import java.util.TimeZone;
 public class SimpleAudioPlayerView extends AbstractAudioPlayer {
     private TextView tvProgress;
     private ProgressBar progressBar;
+    private Button btn_play;
+    private Button btn_pause;
+    private TextView tv_state;
 
     private SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
 
@@ -36,14 +40,29 @@ public class SimpleAudioPlayerView extends AbstractAudioPlayer {
         super(context, attrs, defStyleAttr);
         format.setTimeZone(TimeZone.getTimeZone("GMT+00:00"));
         View.inflate(context, R.layout.view_audio, this);
+        tv_state = findViewById(R.id.tv_state);
         tvProgress = findViewById(R.id.tv_progress);
         progressBar = findViewById(R.id.pb_progress);
+        btn_play=findViewById(R.id.btn_play);
+        btn_pause=findViewById(R.id.btn_pause);
+        btn_play.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                clickAutoPlay();
+            }
+        });
+        btn_pause.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                clickPause();
+            }
+        });
 
     }
 
     public void setup(String path) {
         try {
-            super.setup(path, false);
+            super.setup(path, true);
         } catch (IOException e) {
             e.printStackTrace();
             Toast.makeText(getContext(), "文件不存在", Toast.LENGTH_SHORT).show();
@@ -58,4 +77,37 @@ public class SimpleAudioPlayerView extends AbstractAudioPlayer {
         progressBar.setProgress((int) (percent * 100));
     }
 
+    @Override
+    protected void onStateChanged(int oldState, int state) {
+        super.onStateChanged(oldState, state);
+        tv_state.setText(hashCode()+"---"+getStateString());
+        if (state == AbstractAudioPlayer.STATE_PLAYING) {
+            btn_play.setText("停止");
+        } else if (state == AbstractAudioPlayer.STATE_PAUSE) {
+            btn_play.setText("恢复");
+        } else {
+            btn_play.setText("播放");
+        }
+    }
+
+
+    public void clickAutoPlay() {
+        if (getCurrentState() == AbstractAudioPlayer.STATE_PAUSE) {
+            //如果是暂停的
+            resumePlay();
+        } else if (getCurrentState() == AbstractAudioPlayer.STATE_NORMAL||getCurrentState() == AbstractAudioPlayer.STATE_ERROR) {
+            //如果是停止的
+            startPlay();
+        } else if (getCurrentState() == AbstractAudioPlayer.STATE_PLAYING) {
+            //如果是在播放的
+            stopPlay();
+        }
+    }
+
+    public void clickPause() {
+        if (getCurrentState() == AbstractAudioPlayer.STATE_PLAYING) {
+            //如果是在播放的
+            pausePlay();
+        }
+    }
 }

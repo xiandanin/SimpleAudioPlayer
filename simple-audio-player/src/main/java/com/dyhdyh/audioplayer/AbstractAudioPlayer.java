@@ -20,7 +20,14 @@ public abstract class AbstractAudioPlayer extends RelativeLayout {
     public static final int STATE_AUTO_COMPLETE = 6;
     public static final int STATE_ERROR = 7;
 
+    public static final int WHAT_SET_DATA = 100;
+    public static final int WHAT_START = 101;
+    public static final int WHAT_SEEK = 102;
+
+    public static final int EXTRA_EMPTY = -1;
+
     private int mState;
+    private String mUri;
     private boolean mLooping;
     private long mDuration;
 
@@ -38,23 +45,33 @@ public abstract class AbstractAudioPlayer extends RelativeLayout {
         super(context, attrs, defStyleAttr);
     }
 
-    public void setup(String path, boolean looping) throws IOException {
+    public void setup(String uri, boolean looping) throws IOException {
         this.mLooping = looping;
-        final AudioPlayerController engine = AudioPlayerManager.getInstance().getPlayerEngine();
-        engine.setDataSource(path);
+        this.mUri = uri;
     }
 
     /**
      * 开始
      */
     public void startPlay() {
-        final AudioPlayerController engine = AudioPlayerManager.getInstance().getPlayerEngine();
-        if (engine.isPlaying()) {
-            //如果有播放的 先停掉
-            stopPlay();
-        }
+        AudioPlayerController engine = AudioPlayerManager.getInstance().getPlayerEngine();
+
+        AudioPlayerManager.runCurrentPlayer(new CurrentPlayerRunnable() {
+
+            @Override
+            public void run(AbstractAudioPlayer player) {
+                if (AbstractAudioPlayer.STATE_PLAYING == player.getCurrentState()) {
+                    //如果有播放的 先停掉
+                    player.stopPlay();
+                }
+            }
+        });
+
         AudioPlayerManager.getInstance().setCurrentPlayer(this);
-        engine.start();
+
+        this.mDuration = 0;
+        engine.setDataSource(mUri);
+        //engine.start();
         setState(STATE_PLAYING);
     }
 
@@ -63,7 +80,9 @@ public abstract class AbstractAudioPlayer extends RelativeLayout {
      */
     public void pausePlay() {
         final AudioPlayerController engine = AudioPlayerManager.getInstance().getPlayerEngine();
-        if (engine.isPlaying()) {
+
+        if (AbstractAudioPlayer.STATE_PLAYING == getCurrentState()) {
+            //如果在播放才暂停
             engine.pause();
             setState(STATE_PAUSE);
         }
@@ -73,8 +92,10 @@ public abstract class AbstractAudioPlayer extends RelativeLayout {
      * 恢复
      */
     public void resumePlay() {
-        if (STATE_PAUSE == mState) {
-            startPlay();
+        if (STATE_PAUSE == getCurrentState()) {
+            //如果是暂停的 就直接播放
+            AudioPlayerManager.getInstance().getPlayerEngine().start();
+            setState(STATE_PLAYING);
         }
     }
 
@@ -82,15 +103,11 @@ public abstract class AbstractAudioPlayer extends RelativeLayout {
      * 停止
      */
     public void stopPlay() {
-        final AudioPlayerController engine = AudioPlayerManager.getInstance().getPlayerEngine();
-        if (engine.isPlaying()) {
+        if (AbstractAudioPlayer.STATE_PLAYING == getCurrentState()) {
+            //如果在播放才停止
             AudioPlayerManager.getInstance().getPlayerEngine().stop();
             setState(STATE_NORMAL);
         }
-    }
-
-    public boolean isPlaying() {
-        return AudioPlayerManager.getInstance().getPlayerEngine().isPlaying();
     }
 
     public void seekTo(long time) {
@@ -169,8 +186,8 @@ public abstract class AbstractAudioPlayer extends RelativeLayout {
      * @param extra
      * @return
      */
-    public void onError(final int what, final int extra) {
-        mState = STATE_ERROR;
+    public void onError(final int what, final int extra, final Throwable e) {
+        setState(STATE_ERROR);
     }
 
     public void onInfo(final int what, final int extra) {
@@ -183,6 +200,10 @@ public abstract class AbstractAudioPlayer extends RelativeLayout {
     }
 
     public int getCurrentState() {
+        /*if (AudioPlayerManager.getInstance().getPlayerEngine().isPlaying()) {
+            //如果播放器在播放 修正播放状态
+            mState = STATE_PLAYING;
+        }*/
         return mState;
     }
 

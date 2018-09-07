@@ -2,7 +2,6 @@ package com.dyhdyh.audioplayer;
 
 import android.media.AudioManager;
 import android.media.MediaPlayer;
-import android.os.Handler;
 import android.util.Log;
 
 import java.io.IOException;
@@ -17,7 +16,6 @@ import java.util.TimerTask;
  */
 public class SystemAudioPlayerController implements AudioPlayerController, MediaPlayer.OnPreparedListener, MediaPlayer.OnCompletionListener, MediaPlayer.OnBufferingUpdateListener, MediaPlayer.OnSeekCompleteListener, MediaPlayer.OnErrorListener, MediaPlayer.OnInfoListener {
     private MediaPlayer mediaPlayer;
-    private Handler mMainHandler;
 
     /**
      * 进度回调的间隔
@@ -32,16 +30,21 @@ public class SystemAudioPlayerController implements AudioPlayerController, Media
     private boolean mPrepareCompleted;
 
     public SystemAudioPlayerController() {
-        mMainHandler = new Handler();
+    }
 
-        mediaPlayer = new MediaPlayer();
-        mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-        mediaPlayer.setOnPreparedListener(this);
-        mediaPlayer.setOnCompletionListener(this);
-        mediaPlayer.setOnBufferingUpdateListener(this);
-        mediaPlayer.setOnSeekCompleteListener(this);
-        mediaPlayer.setOnErrorListener(this);
-        mediaPlayer.setOnInfoListener(this);
+    private void reset() {
+        if (mediaPlayer == null) {
+            mediaPlayer = new MediaPlayer();
+            mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            mediaPlayer.setOnPreparedListener(this);
+            mediaPlayer.setOnCompletionListener(this);
+            mediaPlayer.setOnBufferingUpdateListener(this);
+            mediaPlayer.setOnSeekCompleteListener(this);
+            mediaPlayer.setOnErrorListener(this);
+            mediaPlayer.setOnInfoListener(this);
+        } else {
+            mediaPlayer.reset();
+        }
     }
 
     @Override
@@ -52,15 +55,25 @@ public class SystemAudioPlayerController implements AudioPlayerController, Media
             } else {
                 mediaPlayer.prepareAsync();
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             e.printStackTrace();
+
+            callError(AbstractAudioPlayer.WHAT_START, AbstractAudioPlayer.EXTRA_EMPTY, e);
+
         }
     }
 
     @Override
-    public void setDataSource(String path) throws IOException {
+    public void setDataSource(String path) {
         mPrepareCompleted = false;
-        mediaPlayer.setDataSource(path);
+        try {
+            reset();
+            mediaPlayer.setDataSource(path);
+        } catch (IOException e) {
+            e.printStackTrace();
+
+            callError(AbstractAudioPlayer.WHAT_SET_DATA, AbstractAudioPlayer.EXTRA_EMPTY, e);
+        }
 
     }
 
@@ -83,15 +96,21 @@ public class SystemAudioPlayerController implements AudioPlayerController, Media
     public void seekTo(long time) {
         try {
             mediaPlayer.seekTo((int) time);
-        } catch (IllegalStateException e) {
+        } catch (final IllegalStateException e) {
             e.printStackTrace();
+
+            callError(AbstractAudioPlayer.WHAT_SEEK, AbstractAudioPlayer.EXTRA_EMPTY, e);
         }
     }
 
     @Override
     public void release() {
-        if (mediaPlayer != null)
+        //回收也要停止计时器 防止未stop就回收的情况
+        stopTimer();
+        if (mediaPlayer != null) {
             mediaPlayer.release();
+            mediaPlayer = null;
+        }
     }
 
     @Override
@@ -127,7 +146,7 @@ public class SystemAudioPlayerController implements AudioPlayerController, Media
     public void onCompletion(MediaPlayer mediaPlayer) {
         Log.d("--------->", "onCompletion");
         stopTimer();
-        AudioPlayerManager.runCurrentPlayer(mMainHandler, new CurrentPlayerRunnable() {
+        AudioPlayerManager.runMainThreadCurrentPlayer(new CurrentPlayerRunnable() {
             @Override
             public void run(AbstractAudioPlayer player) {
                 player.onAutoCompletion();
@@ -137,7 +156,7 @@ public class SystemAudioPlayerController implements AudioPlayerController, Media
 
     @Override
     public void onBufferingUpdate(MediaPlayer mediaPlayer, final int percent) {
-        AudioPlayerManager.runCurrentPlayer(mMainHandler, new CurrentPlayerRunnable() {
+        AudioPlayerManager.runMainThreadCurrentPlayer(new CurrentPlayerRunnable() {
             @Override
             public void run(AbstractAudioPlayer player) {
                 float percentFloat = (float) percent / 100;
@@ -148,7 +167,7 @@ public class SystemAudioPlayerController implements AudioPlayerController, Media
 
     @Override
     public void onSeekComplete(MediaPlayer mediaPlayer) {
-        AudioPlayerManager.runCurrentPlayer(mMainHandler, new CurrentPlayerRunnable() {
+        AudioPlayerManager.runMainThreadCurrentPlayer(new CurrentPlayerRunnable() {
             @Override
             public void run(AbstractAudioPlayer player) {
                 player.onSeekComplete();
@@ -159,19 +178,14 @@ public class SystemAudioPlayerController implements AudioPlayerController, Media
     @Override
     public boolean onError(MediaPlayer mediaPlayer, final int what, final int extra) {
         Log.d("--------->", "onError--->" + what + "-->" + extra);
-        AudioPlayerManager.runCurrentPlayer(mMainHandler, new CurrentPlayerRunnable() {
-            @Override
-            public void run(AbstractAudioPlayer player) {
-                player.onError(what, extra);
-            }
-        });
+        callError(what, extra, new Exception(String.format("MediaPlayer error what=%d, extra=%d", what, extra)));
         return true;
     }
 
     @Override
     public boolean onInfo(MediaPlayer mediaPlayer, final int what, final int extra) {
         Log.d("--------->", "onInfo--->" + what + "-->" + extra);
-        AudioPlayerManager.runCurrentPlayer(mMainHandler, new CurrentPlayerRunnable() {
+        AudioPlayerManager.runMainThreadCurrentPlayer(new CurrentPlayerRunnable() {
             @Override
             public void run(AbstractAudioPlayer player) {
                 if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
@@ -203,7 +217,7 @@ public class SystemAudioPlayerController implements AudioPlayerController, Media
                 if (currentPosition >= getDuration()) {
                     stopTimer();
                 }
-                AudioPlayerManager.runCurrentPlayer(mMainHandler, new CurrentPlayerRunnable() {
+                AudioPlayerManager.runMainThreadCurrentPlayer(new CurrentPlayerRunnable() {
                     @Override
                     public void run(AbstractAudioPlayer player) {
                         player.onPlayerProgress(currentPosition);
@@ -238,6 +252,22 @@ public class SystemAudioPlayerController implements AudioPlayerController, Media
             mPlayerTimer.cancel();
             mPlayerTimer = null;
         }
+    }
+
+    /**
+     * 回调错误
+     *
+     * @param what
+     * @param extra
+     * @param e
+     */
+    public void callError(final int what, final int extra, final Throwable e) {
+        AudioPlayerManager.runMainThreadCurrentPlayer(new CurrentPlayerRunnable() {
+            @Override
+            public void run(AbstractAudioPlayer player) {
+                player.onError(what, extra, e);
+            }
+        });
     }
 
     public void setProgressCallbackDelay(long progressCallbackDelay) {
