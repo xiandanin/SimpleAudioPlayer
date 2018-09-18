@@ -188,14 +188,7 @@ public class SystemAudioPlayerController implements AudioPlayerController, Media
         AudioPlayerManager.runMainThreadCurrentPlayer(new CurrentPlayerRunnable() {
             @Override
             public void run(AbstractAudioPlayer player) {
-                if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
-                    if (player.getCurrentState() == AbstractAudioPlayer.STATE_PREPARING
-                            || player.getCurrentState() == AbstractAudioPlayer.STATE_PREPARING_CHANGING_URL) {
-                        player.onPrepared();
-                    }
-                } else {
-                    player.onInfo(what, extra);
-                }
+                player.onInfo(what, extra);
             }
         });
         return false;

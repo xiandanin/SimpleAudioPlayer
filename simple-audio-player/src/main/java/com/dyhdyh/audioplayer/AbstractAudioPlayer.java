@@ -13,12 +13,10 @@ import java.lang.reflect.Field;
  */
 public abstract class AbstractAudioPlayer extends RelativeLayout {
     public static final int STATE_NORMAL = 0;
-    public static final int STATE_PREPARING = 1;
-    public static final int STATE_PREPARING_CHANGING_URL = 2;
-    public static final int STATE_PLAYING = 3;
-    public static final int STATE_PAUSE = 5;
-    public static final int STATE_AUTO_COMPLETE = 6;
-    public static final int STATE_ERROR = 7;
+    public static final int STATE_PLAYING = 1;
+    public static final int STATE_PAUSE = 2;
+    public static final int STATE_AUTO_COMPLETE = 3;
+    public static final int STATE_ERROR = 4;
 
     public static final int WHAT_SET_DATA = 100;
     public static final int WHAT_START = 101;
@@ -225,6 +223,23 @@ public abstract class AbstractAudioPlayer extends RelativeLayout {
     }
 
     protected void onStateChanged(int oldState, int state) {
+        switch (state){
+            case STATE_NORMAL:
+                changeUiToNormal();
+                break;
+            case STATE_PLAYING:
+                changeUiToPlaying();
+                break;
+            case STATE_PAUSE:
+                changeUiToPause();
+                break;
+            case STATE_AUTO_COMPLETE:
+                changeUiToAutoComplete();
+                break;
+            case STATE_ERROR:
+                changeUiToError();
+                break;
+        }
         if (mStateChangeListener != null) {
             mStateChangeListener.onStateChanged(oldState, state);
         }
@@ -232,5 +247,26 @@ public abstract class AbstractAudioPlayer extends RelativeLayout {
 
     public void setOnStateChangeListener(OnAudioPlayerStateChangeListener listener) {
         this.mStateChangeListener = listener;
+    }
+
+
+    protected void changeUiToNormal(){
+
+    }
+
+    protected void changeUiToPlaying(){
+
+    }
+
+    protected void changeUiToPause(){
+
+    }
+
+    protected void changeUiToAutoComplete(){
+
+    }
+
+    protected void changeUiToError(){
+
     }
 }
