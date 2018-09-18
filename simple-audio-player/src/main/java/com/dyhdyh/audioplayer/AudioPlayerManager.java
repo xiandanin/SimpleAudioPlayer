@@ -1,7 +1,6 @@
 package com.dyhdyh.audioplayer;
 
 import android.os.Handler;
-import android.util.Log;
 import android.util.SparseArray;
 
 /**
@@ -113,7 +112,6 @@ public class AudioPlayerManager {
         runLifecyclePlayer(key, new CurrentPlayerRunnable() {
             @Override
             public void run(AbstractAudioPlayer player) {
-                //Log.d("resume-------->", player.getStateString() + "-->" + player.getContext());
                 player.startPlay();
             }
         });
@@ -123,10 +121,17 @@ public class AudioPlayerManager {
         runLifecyclePlayer(key, new CurrentPlayerRunnable() {
             @Override
             public void run(AbstractAudioPlayer player) {
-                Log.d("pause-------->", player.getStateString() + "-->" + player.getContext());
                 player.stopPlay();
             }
         });
+    }
+
+    public static void stopAll() {
+        SparseArray<AbstractAudioPlayer> players = getInstance().mLifecyclePlayer;
+        for (int i = 0; i < players.size(); i++) {
+            AbstractAudioPlayer player = players.valueAt(i);
+            player.stopPlay();
+        }
     }
 
     public static void release(final Object key) {
