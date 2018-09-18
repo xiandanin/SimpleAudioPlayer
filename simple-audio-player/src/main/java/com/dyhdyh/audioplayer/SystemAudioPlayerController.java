@@ -184,7 +184,7 @@ public class SystemAudioPlayerController implements AudioPlayerController, Media
 
     @Override
     public boolean onInfo(MediaPlayer mediaPlayer, final int what, final int extra) {
-        Log.d("--------->", "onInfo--->" + what + "-->" + extra);
+        //Log.d("--------->", "onInfo--->" + what + "-->" + extra);
         AudioPlayerManager.runMainThreadCurrentPlayer(new CurrentPlayerRunnable() {
             @Override
             public void run(AbstractAudioPlayer player) {

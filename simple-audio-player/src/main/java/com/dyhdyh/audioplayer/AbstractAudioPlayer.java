@@ -69,7 +69,7 @@ public abstract class AbstractAudioPlayer extends RelativeLayout {
 
         this.mDuration = 0;
         engine.setDataSource(mUri);
-        //engine.start();
+        engine.start();
         setState(STATE_PLAYING);
     }
 
@@ -131,10 +131,6 @@ public abstract class AbstractAudioPlayer extends RelativeLayout {
 
     public void setVolume(float leftVolume, float rightVolume) {
         AudioPlayerManager.getInstance().getPlayerEngine().setVolume(leftVolume, rightVolume);
-    }
-
-    public void onPrepared() {
-
     }
 
     /**
